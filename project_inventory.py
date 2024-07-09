@@ -1,9 +1,13 @@
-import pandas as pd
 import csv 
 from datetime import date
-import sys
+from reportlab.pdfgen import canvas 
+from collections import defaultdict
 
 class Products:
+    '''
+    It used to create product with the product details, when object is created the object will return
+    the product id and it quantity
+    '''
     def __init__(self,product_id,name,price,quantity,category):
         self.product_id=product_id
         self.name=name
@@ -15,10 +19,22 @@ class Products:
         return f'Product: {self.name}, Quantity: {str(self.quantity)}'
 
 class Inventory:
+    '''
+    We can view,add,update specific parameter of the product and remove the product object from the products list
+
+    '''
+
+
     def __init__(self):
+        '''
+        The product_list stores product id as key and value as product object
+        '''
         self.products_list={}
 
     def view_all_products(self):
+        '''
+        Displays all the products added in inventory with respective produt name and quantities
+        '''
         if not self.products_list:
             print('No Products Available')
         else:
@@ -26,11 +42,16 @@ class Inventory:
                 print(item)
 
     def add_product(self,product_inven):
+        '''
+        Adds the product object to list
+        '''
         self.products_list[product_inven.product_id]=product_inven
         print(f'Product ID:{product_inven.product_id} Added sucessfully')
 
     def update_product(self,product_id,replace_product_id=None,replace_name=None,replace_category=None,replace_price=None,replace_quantity=None):
-        
+        '''
+        Updates specific parameter of the product
+        '''
         if product_id in self.products_list:
             # self.products_list[product_id]=product_replace
 
@@ -63,6 +84,10 @@ class Inventory:
             print(f'Product Id: {product_id} --Does Not Exist')
 
     def remove_product(self,product_id):
+
+        '''
+        Removes the product from the product list
+        '''
         if product_id in self.products_list:
 
             del self.products_list[product_id]
@@ -71,70 +96,152 @@ class Inventory:
             print('\nProduct Not Found')
 
 
+
+
 class Transaction:
-    def __init__(self, product_id, quantity, tr_date):
-        self.product_id = product_id
-        self.quantity = quantity
-        self.date = tr_date or date.today()
+    '''
+    This records the sale trannsaction into csv file and also stores the list of sale_transaction required for the invoice
+    '''
+
+    sale_transaction_obj=defaultdict(list)
+
+    def __init__(self):
+        self.date = date.today()
+
+    def add_sale_transaction(self,inven,product_id, quantity_sold,customer_name,total_amt):
+        self.product_id=product_id
+        self.quantity_sold=quantity_sold
+        self.inventory=inven
+        self.customer_name=customer_name
+        self.total_amt=total_amt
+
+        product_name=self.inventory.name
+        price=self.inventory.sale_price
+        
+
+        self.sale_transaction_obj[self.product_id]+=[
+            {
+                'customer_name':self.customer_name,
+                'product_name':product_name,
+                'quantity_sold':self.quantity_sold,
+                'price':price,
+                'total_amt':self.total_amt,
+                'transction_date':self.date
+            }
+        ]
+        print(self.sale_transaction_obj)
+
 
 class Sale(Transaction):
-    def __init__(self, inventory,product_id, quantitity_sold, sale_price, transaction_date):
-        super().__init__(product_id, quantitity_sold, transaction_date)
-        self.sale_price = sale_price
-        product_inven=inventory.products_list[product_id]
-        self.data=[[product_id, quantitity_sold, sale_price, transaction_date]]
 
-        if product_inven.quantity>=quantitity_sold:
-            product_inven.quantity-=quantitity_sold
-            
-            with open('sale_records.csv', 'a', newline='') as csv_file:
-                writer = csv.writer(csv_file)
-                for row in self.data:
-                    writer.writerow(row)
-        else:
-            print('\nProduct Out of stock')
+    '''
+    Inheretis from Trnsaction class for storing the sales information and updates inventory accordingly
+    '''
+    def __init__(self, inventory,customer_name,product_id,quantitity_sold):
+        super().__init__()
+        self.customer_name=customer_name
 
+        try:
+            product_inven=inventory.products_list[product_id]
 
-class Return(Transaction):
+            if product_inven.quantity>=quantitity_sold:
+                product_inven.quantity-=quantitity_sold
+                
+                total_amount = int(product_inven.sale_price)*int(quantitity_sold)
+                # print(total_amount)
+
+                self.data=[[product_id, quantitity_sold, total_amount, self.date]]
+
+                self.add_sale_transaction(product_inven,product_id,quantitity_sold,self.customer_name,total_amount)
+                # print(product_inven,self.customer_name,quantitity_sold)    
+                
+                with open('sale_records.csv', 'a', newline='') as csv_file:
+                    writer = csv.writer(csv_file)
+                    for row in self.data:
+                        writer.writerow(row)
+            else:
+                print('\nProduct Out of stock')
+
+        except:
+           print('\nProduct ID NOT FOUND')
+
+           
+
+class Return:
+    '''
+    Records the returned product details into csv and updates inventory accordingly
+    '''
     def __init__(self,inventory, product_id, quantitity_returned, reason, transaction_date):
-        super().__init__(product_id, quantitity_returned, transaction_date)
         self.reason = reason
+
         self.data=[[product_id, quantitity_returned, self.reason, transaction_date]]
 
-        product_inven=inventory.products_list[product_id]
-        product_inven.quantity+=quantitity_returned
+        try :
+            product_inven=inventory.products_list[product_id]
+            product_inven.quantity+=quantitity_returned
 
-        with open('return_records.csv', 'a', newline='') as csv_file:
-                writer = csv.writer(csv_file)
-                for row in self.data:
-                    writer.writerow(row)
-     
-
-# class Invoice:
-#     def __init__(self,tran)
-
-
-# inven=Inventory()
-
-# prd_1=Products(1001,'Dell Latitude E740',49000,10,'ELECTRONICS')
-# prd_2=Products(1023,'HP 2345',20000,20,'ELECTRONICS')
-
-# inven.add_product(prd_1)
-# inven.add_product(prd_2)
-
-# inven.update_product(1073,prd_3)
-# inven.remove_product(1023)
-# inven.view_all_products()
-
-# sale_obj=Sale(inven,1001,5,49000,'2024-07-01')
-
-# return_obj=Return_record(inven,1001,5,'DAMAGE PRODUCT','2024-07-02')
-# inven.view_all_products()
+            with open('return_records.csv', 'a', newline='') as csv_file:
+                    writer = csv.writer(csv_file)
+                    for row in self.data:
+                        writer.writerow(row)
+        except:
+            print('No product id found')
 
 
+class Invoice:
+    
+    '''
+    Generates sale invoice for the specific product id in pdf format
+    Including product name, quantities, prices, total amount, and transaction date.
+    Display of all the invoices made for a specific product
+    '''
 
-# CLI COMMAND LINES (ADD,UPDATE,REMOVE, VIEW, etc.)
+    processed_invoice=defaultdict(list)
 
+    def __init__(self,transction_sale_data,product_id):
+        self.transacion_sale_data=transction_sale_data
+        self.product_id=product_id
+
+    def invoice_pdf(self):
+        header="SALE INVOICE"
+        
+        try:
+            sale_data=self.transacion_sale_data[self.product_id]
+
+            # print(sale_data)
+            x=50
+            
+            for d in sale_data:
+                y=750
+                cust_name=d['customer_name']
+                file_path=f"D:\\Python Projects\\Assignment - Advanced Inventory Management System with Invoicing\\{cust_name}_{self.product_id}.pdf"
+                
+                p = canvas.Canvas(file_path)
+            
+                p.drawString(170,800,header)
+                
+                
+                for k,v in d.items():
+                    data=f'{k} : {v}'
+                    p.drawString(x,y,data)
+                    y-=20
+                p.save()
+                self.processed_invoice[d['product_id']]+=[cust_name]
+        except:
+            print('\nProduct ID not found')
+
+    def view_invoice(self,product_id):
+        try :
+            all_invoice=self.processed_invoice[product_id]
+            print(all_invoice)
+        except:
+            print("\nInvoice not found")
+
+'''
+command-line interface (CLI) for users to interact with the system.
+CLI COMMANDS FOR SPECIFIC OPERATIONS (ADD,UPDATE,REMOVE, VIEW, etc.)
+
+'''
 class cmd_line:
     def __init__(self,inventory):
         self.inventory=inventory
@@ -153,15 +260,15 @@ class cmd_line:
 
     def update_product(self):
         product_id = input("Enter product ID which is to be updated: ") or None
-        rep_product_id=input("Change product ID to (press ENTER to skip): ")or None
-        name = input("Change product name to (press ENTER to skip): ")or None
-        category = input("Change product category to (press ENTER to skip): ")or None
-        price = input("Change product price to (press ENTER to skip) : ")or None
+        rep_product_id=input("Change product ID to OR (press ENTER to skip): ")or None
+        name = input("Change product name to OR (press ENTER to skip): ")or None
+        category = input("Change product category to OR (press ENTER to skip): ")or None
+        price = input("Change product price to OR (press ENTER to skip) : ")or None
         
         if price !=None:
             price=float(price)
 
-        quantity = int(input("Change product quantity to (press ENTER to skip): "))or None
+        quantity = input("Change product quantity to (press ENTER to skip): ")or None
         if quantity !=None:
             quantity=int(quantity)
         self.inventory.update_product(product_id,rep_product_id, name, category, price, quantity )
@@ -171,23 +278,38 @@ class cmd_line:
         self.inventory.remove_product(product_id)
 
     def sale_product(self):
+        customer_name=input("Enter customer name: ")
         product_id = input("Enter product ID: ")
         quantity = int(input("Enter quantity sold: "))
-        sale_price = float(input("Enter sale price: "))    
-        sale = Sale(self.inventory,product_id, quantity, sale_price,date.today())
+        # sale_price = float(input("Enter sale price: "))    
+        sale = Sale(self.inventory,customer_name,product_id,quantity)
         print("\nSale recorded successfully!")
 
     def return_product(self):
-        product_id = input("Enter product ID: ")
+        product_id = input("Enter returned product ID : ")
         quantity = int(input("Enter quantity returned: "))
         reason = input("Reason for return: ")
         retrn=Return(self.inventory,product_id, quantity, reason, date.today())
-        print("\nReturns recorded successfully!")
+        print("\nReturns recorded !")
 
-    # def invoice_pdf(self):
-    #     def __init__(self,):
-    #         self.sale=sale
+    def get_invoice(self):
+        product_id = input("Enter product ID to get invoice for: ")
+        obj=Transaction()
+        sale_dta=obj.sale_transaction_obj
+        invoice=Invoice(sale_dta,product_id)
+        invoice.invoice_pdf()
+        print("\nPdf generated")
 
+    def view_invoice(self,product_id):
+        invoice=Invoice().view_invoice(product_id)
+
+
+'''
+main function to execute from here, initialising the csv files with 
+respective columns for sales and return records. 
+
+
+'''
 def main():  
     sale_records_columns=[['product_id','quantitity_sold', 'sale_price', 'transaction_date']]
     return_records_columns=[['product_id', 'quantitity_returned', 'reason', 'transaction_date']]
@@ -217,17 +339,20 @@ def main():
         "sale": cmd_obj.sale_product,
         "return": cmd_obj.return_product,
 
-        # "invoice": cmd_obj.generate_invoice,
+        "invoice_pdf": cmd_obj.get_invoice,
+        "list_invoice":cmd_obj.view_invoice
     }
 
     while True:
-        command = input("Enter command (add, update, remove, view, sale, return, invoice, quit): ")
+        command = input("Enter command (add,update,remove,view,sale,return,invoice,list_invoice,quit): ")
         if command == "quit":
-            sys.exit()
+            break
         elif command in commands:
             commands[command]()
         else:
-            print("Please try valid commands in the options")
+            print("Invalid ! Please enter valid command ")
+
+
 
 if __name__ == "__main__":
     main()
