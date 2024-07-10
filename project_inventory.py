@@ -242,7 +242,7 @@ command-line interface (CLI) for users to interact with the system.
 CLI COMMANDS FOR SPECIFIC OPERATIONS (ADD,UPDATE,REMOVE, VIEW, etc.)
 
 '''
-class cmd_line:
+class Cmd_line:
     def __init__(self,inventory):
         self.inventory=inventory
 
@@ -328,7 +328,7 @@ def main():
 
     inven=Inventory()
 
-    cmd_obj=cmd_line(inven)
+    cmd_obj=Cmd_line(inven)
 
     commands = {
         "view": cmd_obj.view_products,
